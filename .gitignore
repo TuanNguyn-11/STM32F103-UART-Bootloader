@@ -1,0 +1,62 @@
+# ========================
+# STM32 / Keil uVision
+# ========================
+# Build output
+*.o
+*.d
+*.lst
+*.htm
+*.map
+*.dep
+*.crf
+*.axf
+*.elf
+*.lnp
+*.build_log.htm
+*.iex
+
+# Keil uVision project files (giữ lại .uvprojx và .uvoptx)
+*.bak
+*.dbgconf
+*._wk
+*.uvguix.*
+
+# Object files
+/Objects/
+/Listings/
+**/Objects/
+**/Listings/
+**/DebugConfig/
+**/RTE/
+
+# ========================
+# STM32CubeMX
+# ========================
+.mxproject
+
+# ========================
+# IDE metadata
+# ========================
+.metadata/
+.settings/
+.project
+.cproject
+
+# ========================
+# OS generated
+# ========================
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# ========================
+# Python
+# ========================
+__pycache__/
+*.pyc
+*.pyo
+
+# ========================
+# Video files (quá lớn cho GitHub)
+# ========================
+Video/*.mp4
