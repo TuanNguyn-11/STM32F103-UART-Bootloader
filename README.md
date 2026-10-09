@@ -17,6 +17,7 @@ Xây dựng chương trình **Bootloader tùy chỉnh** cho vi điều khiển *
 - [Giao thức truyền Firmware](#-giao-thức-truyền-firmware)
 - [Hướng dẫn sử dụng](#-hướng-dẫn-sử-dụng)
 - [Video Demo](#-video-demo)
+- [Hạn chế & hướng phát triển](#-hạn-chế--hướng-phát-triển)
 - [Thành viên nhóm](#-thành-viên-nhóm)
 - [Tài liệu tham khảo](#-tài-liệu-tham-khảo)
 
@@ -43,7 +44,7 @@ Khởi động MCU → Bootloader chạy → Chờ firmware từ PC qua UART
 | Tính năng | Mô tả |
 |---|---|
 | 🔄 Nạp firmware qua UART | Truyền file `.bin` từ PC qua cổng COM (USB-to-TTL) |
-| ✅ Checksum Verification | Xác minh tính toàn vẹn dữ liệu bằng thuật toán checksum |
+| ✅ Checksum Verification | Tổng cộng 32-bit của toàn bộ byte firmware (additive checksum), so với giá trị PC gửi trong header |
 | 🛡️ Fallback App cũ | Tự động quay về firmware cũ nếu quá trình nạp thất bại |
 | 🖥️ Tool Python GUI | Giao diện đồ họa (Tkinter) để chọn file firmware và cổng COM |
 | ⚡ Chunk-based Transfer | Truyền firmware theo từng chunk 256 bytes, đảm bảo ổn định |
@@ -67,6 +68,8 @@ Khởi động MCU → Bootloader chạy → Chờ firmware từ PC qua UART
                                                                     └──────────────────┘
 ```
 
+![Sơ đồ khối](Schematic/SoDoKhoi.png)
+
 ### Kết nối phần cứng
 
 | USB-to-TTL (CH340G) | STM32F103C8T6 |
@@ -75,6 +78,8 @@ Khởi động MCU → Bootloader chạy → Chờ firmware từ PC qua UART
 | RX | PA9 (TX) |
 | 3V3 | 3V3 |
 | GND | GND |
+
+![Sơ đồ nguyên lý](Schematic/schematic.png)
 
 ---
 
@@ -92,7 +97,7 @@ Khởi động MCU → Bootloader chạy → Chờ firmware từ PC qua UART
 ## 📂 Cấu trúc thư mục
 
 ```
-NHOM13_BOOTLOADER/
+STM32F103-UART-Bootloader/
 ├── BootLoader/
 │   ├── BL/                         # Project STM32CubeMX - Chương trình Bootloader
 │   │   ├── Core/
@@ -122,14 +127,10 @@ NHOM13_BOOTLOADER/
 │   ├── SoDoKhoi.png                # Sơ đồ khối hệ thống
 │   └── schematic.png               # Sơ đồ nguyên lý mạch
 │
-├── Video/                          # Video demo
-│   ├── 1. Build chương trình Bootloader.mp4
-│   ├── 2. Nạp chương trình Bootloader.mp4
-│   ├── 3. Tool python nạp firmware mới.mp4
-│   └── Link Youtube.txt
+├── Video/
+│   └── Link Youtube.txt            # Link playlist video demo
 │
-├── HTN_Bootloader.pdf              # Báo cáo đồ án (PDF)
-└── Lienhe.txt                      # Thông tin liên hệ nhóm
+└── HTN_Bootloader.pdf              # Báo cáo đồ án (PDF)
 ```
 
 ---
@@ -142,7 +143,7 @@ STM32F103C8T6 có **64KB Flash** (từ `0x08000000` đến `0x0800FFFF`), đư�
 ┌───────────────────────────────────────────┐ 0x08000000
 │                                           │
 │             BOOTLOADER                    │
-│          (~50KB - 50 pages)               │
+│   (vùng dành riêng 50KB - 50 pages)       │
 │                                           │
 │   - Vector Table (Bootloader)             │
 │   - Hàm main(), Bootloader_UART()         │
@@ -164,8 +165,8 @@ STM32F103C8T6 có **64KB Flash** (từ `0x08000000` đến `0x0800FFFF`), đư�
 
 | Vùng nhớ | Địa chỉ bắt đầu | Kích thước |
 |---|---|---|
-| Bootloader | `0x08000000` | ~50 KB |
-| Application | `0x0800C800` | ~14 KB |
+| Bootloader | `0x08000000` | 50 KB dành riêng (`BL.hex` thực tế dùng 6 752 bytes ≈ 6,6 KB) |
+| Application | `0x0800C800` | 14 KB (`0x3800`) |
 
 ---
 
@@ -215,6 +216,8 @@ STM32F103C8T6 có **64KB Flash** (từ `0x08000000` đến `0x0800FFFF`), đư�
 | Parity | None |
 | Stop bits | 1 |
 | Timeout | 5000 ms |
+
+> Checksum = `sum(firmware_bytes) & 0xFFFFFFFF` (cùng công thức ở `Calc_Checksum()` trong `BootLoader.c` và `calc_checksum()` trong `Interface_Send_FW.py`). Thông báo lỗi tên `CRC_FAIL` nhưng thuật toán **không phải CRC**.
 
 ---
 
@@ -292,6 +295,15 @@ Xem video demo đầy đủ tại playlist YouTube:
 | Video 1 | Build chương trình Bootloader bằng Keil µVision |
 | Video 2 | Nạp chương trình Bootloader vào MCU bằng Flash Demonstrator |
 | Video 3 | Sử dụng Tool Python để nạp firmware mới qua UART |
+
+---
+
+## 🚧 Hạn chế & hướng phát triển
+
+- Checksum cộng dồn không phát hiện được lỗi đảo thứ tự byte → có thể thay bằng CRC-32.
+- PC gửi liên tục các chunk, MCU không trả ACK cho từng chunk → chưa có cơ chế gửi lại (retry).
+- `MAX_FW_SIZE` đang là 64 KB trong khi vùng App chỉ có 14 KB (`0x3800`) → nên giới hạn theo kích thước vùng App.
+- Chưa có số liệu đo thời gian nạp và tỉ lệ nạp thành công.
 
 ---
 
